@@ -31,7 +31,7 @@ cp .env.example .env
 ```bash
 mkdir -p ${STORAGE_PATH:-./storage}/{api,bridge,indexer}/config
 mkdir -p ${STORAGE_PATH:-./storage}/{api,bridge}/secrets
-mkdir -p ${STORAGE_PATH:-./storage}/{mongodb/data,elasticsearch/data,rabbitmq/data,redis/data}
+mkdir -p ${STORAGE_PATH:-./storage}/{mongodb/data,opensearch/data,rabbitmq/data,redis/data}
 ```
 
 ### 2. Auth + encryption + Mongo keyfile
@@ -47,13 +47,13 @@ cp ${STORAGE_PATH:-./storage}/api/secrets/cookie-monsta ${STORAGE_PATH:-./storag
 
 ### 3. Linux permissions
 
-MongoDB / RabbitMQ / Redis run as UID 999, Elasticsearch as 1000:0:
+MongoDB / RabbitMQ / Redis run as UID 999, OpenSearch as 1000:0:
 
 ```bash
 sudo chown -R 999:999 ${STORAGE_PATH:-./storage}/{mongodb,rabbitmq,redis}
 sudo chmod 400 ${STORAGE_PATH:-./storage}/mongodb/keyfile
-sudo chown -R 1000:0 ${STORAGE_PATH:-./storage}/elasticsearch/data
-sudo chmod 775 ${STORAGE_PATH:-./storage}/elasticsearch/data
+sudo chown -R 1000:0 ${STORAGE_PATH:-./storage}/opensearch/data
+sudo chmod 775 ${STORAGE_PATH:-./storage}/opensearch/data
 ```
 
 ### 4. Service config
@@ -97,7 +97,7 @@ ROCKET_TAG=<sha>     # pin to a commit
 | Service | Host port | Env var |
 |---|---|---|
 | MongoDB | 27017 | `MONGO_PORT` |
-| Elasticsearch | 9200 | `ES_PORT` |
+| OpenSearch | 9200 | `OS_PORT` |
 | RabbitMQ AMQP | 5672 | `RABBITMQ_AMQP_PORT` |
 | RabbitMQ mgmt | 15672 | `RABBITMQ_MGMT_PORT` |
 | Redis | 6379 | `REDIS_PORT` |

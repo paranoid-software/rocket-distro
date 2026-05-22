@@ -42,7 +42,7 @@
   },
   "searchCacheDbContext": {
     "id": "search-cache",
-    "hostName": "elasticsearch",
+    "hostName": "opensearch",
     "portNumber": 9200,
     "proxyHeaders": {}
   },

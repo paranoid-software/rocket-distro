@@ -61,14 +61,15 @@ services:
     networks:
       - rocket
 
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.3
-    hostname: elasticsearch
+  opensearch:
+    image: opensearchproject/opensearch:2
+    hostname: opensearch
     environment:
       discovery.type: single-node
-      xpack.security.enabled: "false"
-      xpack.security.enrollment.enabled: "false"
-      ES_JAVA_OPTS: ${ES_JAVA_OPTS:--Xms512m -Xmx512m}
+      plugins.security.disabled: "true"
+      DISABLE_INSTALL_DEMO_CONFIG: "true"
+      DISABLE_PERFORMANCE_ANALYZER_AGENT_CLI: "true"
+      OPENSEARCH_JAVA_OPTS: ${OS_JAVA_OPTS:--Xms256m -Xmx256m}
       cluster.routing.allocation.disk.watermark.low: "95%"
       cluster.routing.allocation.disk.watermark.high: "96%"
       cluster.routing.allocation.disk.watermark.flood_stage: "97%"
@@ -77,9 +78,9 @@ services:
         soft: -1
         hard: -1
     ports:
-      - "${ES_PORT:-9200}:9200"
+      - "${OS_PORT:-9200}:9200"
     volumes:
-      - ${STORAGE_PATH:-./storage}/elasticsearch/data:/usr/share/elasticsearch/data
+      - ${STORAGE_PATH:-./storage}/opensearch/data:/usr/share/opensearch/data
     healthcheck:
       test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -qE '\"status\":\"(green|yellow|red)\"'"]
       interval: 10s
@@ -163,7 +164,7 @@ services:
         condition: service_healthy
       mongo-init:
         condition: service_completed_successfully
-      elasticsearch:
+      opensearch:
         condition: service_healthy
       rocket-logy:
         condition: service_started
@@ -209,7 +210,7 @@ services:
     volumes:
       - ${STORAGE_PATH:-./storage}/indexer/config:/etc/rocket-indexer/config:ro
     depends_on:
-      elasticsearch:
+      opensearch:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
