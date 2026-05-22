@@ -1,0 +1,71 @@
+{
+  "application": {
+    "id": "rocket-indexer",
+    "name": "Rocket Indexer",
+    "description": "Rocket documents indexer",
+    "tags": [
+      "rocket",
+      "csharp",
+      "tools"
+    ],
+    "httpHealthCheck": {
+      "portNumber": 8080,
+      "url": "/health-check"
+    }
+  },
+  "indexerStreamSettings": {
+    "exchangeName": "db-events",
+    "queueName": "db-events.indexer",
+    "routingKeys": [
+      "*.*.Insert",
+      "*.*.Update",
+      "*.*.Replace",
+      "*.*.Delete"
+    ],
+    "autoDeleteQueue": false,
+    "isDurable": true,
+    "autoAck": false,
+    "arguments": {}
+  },
+  "mapperStreamSettings": {
+    "exchangeName": "db-events",
+    "queueName": "db-events.mapper",
+    "routingKeys": [
+      "*._objects.Insert",
+      "*._objects.Update",
+      "*._objects.Replace"
+    ],
+    "autoDeleteQueue": false,
+    "isDurable": true,
+    "autoAck": false,
+    "arguments": {}
+  },
+  "searchCacheDbContext": {
+    "id": "search-cache",
+    "hostName": "elasticsearch",
+    "portNumber": 9200,
+    "proxyHeaders": {}
+  },
+  "messageBrokerServiceContext": {
+    "id": "message-broker",
+    "hostName": "rabbitmq",
+    "portNumber": 5672,
+    "virtualHost": "/",
+    "userName": "rocket",
+    "password": "changeme"
+  },
+  "loggingServiceContext": {
+    "id": "logy",
+    "baseEndpoint": "http://rocket-logy:30077",
+    "headers": {
+      "Content-Type": "application/json"
+    }
+  },
+  "zooServiceContext": {
+    "id": "zookeeper",
+    "baseEndpoint": "http://rocket-zookeeper:30079",
+    "headers": {
+      "Content-Type": "application/json"
+    }
+  }
+}

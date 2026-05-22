@@ -1,0 +1,51 @@
+{
+  "application": {
+    "id": "rocket-api",
+    "name": "Rocket API",
+    "description": "Database as a service, restful API",
+    "tags": [
+      "python",
+      "tools"
+    ],
+    "httpHealthCheck": {
+      "portNumber": 8000,
+      "url": "/health-check"
+    }
+  },
+  "securityServiceContext": {
+    "id": "jwt",
+    "audience": "https://rocket-api.example.com",
+    "masterAccountCookieFilePath": "/etc/rocket-api/auth/master-account.cookie",
+    "signingKeyPairFilePath": "/etc/rocket-api/auth/signing-keypair.json",
+    "verificationKeyPairFilePath": "/etc/rocket-api/auth/verification-keypair.json"
+  },
+  "masterDbContext": {
+    "id": "master-db",
+    "hostName": "mongodb",
+    "portNumber": 27017,
+    "username": "admin",
+    "password": "changeme",
+    "defaultDbName": "_rocket",
+    "encryptionCookieFilePath": "/etc/rocket-api/secrets/cookie-monsta"
+  },
+  "searchCacheDbContext": {
+    "id": "search-cache",
+    "hostName": "elasticsearch",
+    "portNumber": 9200,
+    "proxyHeaders": {}
+  },
+  "loggingServiceContext": {
+    "id": "logy",
+    "baseEndpoint": "http://rocket-logy:30077",
+    "headers": {
+      "Content-Type": "application/json"
+    }
+  },
+  "zooServiceContext": {
+    "id": "zookeeper",
+    "baseEndpoint": "http://rocket-zookeeper:30079",
+    "headers": {
+      "Content-Type": "application/json"
+    }
+  }
+}

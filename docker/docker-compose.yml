@@ -1,0 +1,223 @@
+# Rocket - distribution (run from published images)
+#
+# Reads .env from this folder. Uses published images at ghcr.io/paranoid-software/* for api/bridge/indexer.
+# Logy and zookeeper emulators are built locally from the bundled source (tiny Python images).
+#
+# Usage:
+#   cp .env.example .env && edit .env
+#   docker compose up -d
+
+networks:
+  rocket:
+    name: rocket
+
+services:
+  mongodb:
+    image: mongo:7
+    hostname: mongodb
+    ports:
+      - "${MONGO_PORT:-27017}:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:?Set MONGO_INITDB_ROOT_PASSWORD in .env}
+    command: ["mongod", "--replSet", "rs0", "--keyFile", "/data/keyfile", "--bind_ip_all", "--quiet"]
+    volumes:
+      - ${STORAGE_PATH:-./storage}/mongodb/data:/data/db
+      - ${STORAGE_PATH:-./storage}/mongodb/keyfile:/data/keyfile:ro
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    networks:
+      - rocket
+
+  mongo-init:
+    image: mongo:7
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:?Set MONGO_INITDB_ROOT_PASSWORD in .env}
+    entrypoint: ["bash", "-c"]
+    command:
+      - |
+        mongosh --host mongodb --port 27017 -u "$$MONGO_INITDB_ROOT_USERNAME" -p "$$MONGO_INITDB_ROOT_PASSWORD" --quiet --eval '
+          try {
+            var s = rs.status();
+            print("Replica set already initiated: " + s.set);
+          } catch (e) {
+            if (e.codeName === "NotYetInitialized") {
+              print("Initiating replica set...");
+              printjson(rs.initiate());
+            } else {
+              throw e;
+            }
+          }
+        '
+    restart: "no"
+    networks:
+      - rocket
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.3
+    hostname: elasticsearch
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      xpack.security.enrollment.enabled: "false"
+      ES_JAVA_OPTS: ${ES_JAVA_OPTS:--Xms512m -Xmx512m}
+      cluster.routing.allocation.disk.watermark.low: "95%"
+      cluster.routing.allocation.disk.watermark.high: "96%"
+      cluster.routing.allocation.disk.watermark.flood_stage: "97%"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    ports:
+      - "${ES_PORT:-9200}:9200"
+    volumes:
+      - ${STORAGE_PATH:-./storage}/elasticsearch/data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -qE '\"status\":\"(green|yellow|red)\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
+    networks:
+      - rocket
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    hostname: rabbitmq
+    ports:
+      - "${RABBITMQ_AMQP_PORT:-5672}:5672"
+      - "${RABBITMQ_MGMT_PORT:-15672}:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-rocket}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:?Set RABBITMQ_DEFAULT_PASS in .env}
+    volumes:
+      - ${STORAGE_PATH:-./storage}/rabbitmq/data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD-SHELL", "rabbitmqctl eval 'case {rabbit:is_booted(node()), rabbit:alarms(), rabbit_networking:active_listeners()} of {true, [], [_|_]} -> ok; _ -> exit(not_ready) end.' || exit 1"]
+      interval: 5s
+      timeout: 10s
+      retries: 15
+      start_period: 35s
+    networks:
+      - rocket
+
+  redis:
+    image: redis:7-alpine
+    hostname: redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+    command: ["sh", "-c", "if [ -n \"$$REDIS_PASSWORD\" ]; then exec redis-server --requirepass \"$$REDIS_PASSWORD\"; else exec redis-server; fi"]
+    volumes:
+      - ${STORAGE_PATH:-./storage}/redis/data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - rocket
+
+  rocket-logy:
+    build:
+      context: ./logy-emulator
+      dockerfile: Dockerfile
+    hostname: logy
+    ports:
+      - "30077:30077"
+    networks:
+      - rocket
+
+  rocket-zookeeper:
+    build:
+      context: ./zookeeper-emulator
+      dockerfile: Dockerfile
+    hostname: zookeeper
+    ports:
+      - "30079:30079"
+    networks:
+      - rocket
+
+  api:
+    image: ghcr.io/paranoid-software/rocket-api:${ROCKET_TAG:-latest}
+    ports:
+      - "8000:8000"
+    environment:
+      - CONFIG_FILEPATH=/etc/rocket-api/config/settings.json
+      - COOKIE_MONSTA_FILEPATH=/etc/rocket-api/secrets/cookie-monsta
+    volumes:
+      - ${STORAGE_PATH:-./storage}/api/config:/etc/rocket-api/config:ro
+      - ${STORAGE_PATH:-./storage}/api/secrets:/etc/rocket-api/secrets:ro
+      - ${STORAGE_PATH:-./storage}/api/auth:/etc/rocket-api/auth:ro
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      mongo-init:
+        condition: service_completed_successfully
+      elasticsearch:
+        condition: service_healthy
+      rocket-logy:
+        condition: service_started
+      rocket-zookeeper:
+        condition: service_started
+    networks:
+      - rocket
+
+  bridge:
+    image: ghcr.io/paranoid-software/rocket-bridge:${ROCKET_TAG:-latest}
+    restart: on-failure
+    ports:
+      - "8081:8080"
+    environment:
+      - CONFIG_FILEPATH=/etc/rocket-bridge/config/settings.json
+      - COOKIE_MONSTA_FILEPATH=/etc/rocket-bridge/secrets/cookie-monsta
+    volumes:
+      - ${STORAGE_PATH:-./storage}/bridge/config:/etc/rocket-bridge/config:ro
+      - ${STORAGE_PATH:-./storage}/bridge/secrets:/etc/rocket-bridge/secrets:ro
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      mongo-init:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rocket-logy:
+        condition: service_started
+      rocket-zookeeper:
+        condition: service_started
+    networks:
+      - rocket
+
+  indexer:
+    image: ghcr.io/paranoid-software/rocket-indexer:${ROCKET_TAG:-latest}
+    restart: on-failure
+    ports:
+      - "8082:8080"
+    environment:
+      - CONFIG_FILEPATH=/etc/rocket-indexer/config/settings.json
+    volumes:
+      - ${STORAGE_PATH:-./storage}/indexer/config:/etc/rocket-indexer/config:ro
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      bridge:
+        condition: service_started
+      rocket-logy:
+        condition: service_started
+      rocket-zookeeper:
+        condition: service_started
+    networks:
+      - rocket

@@ -1,0 +1,52 @@
+{
+  "application": {
+    "id": "rocket-bridge",
+    "messagesExchange": "db-events",
+    "messagesRoutingKeyPrefix": "",
+    "name": "Rocket Bridge",
+    "description": "Rocket database server events listener",
+    "tags": [
+      "csharp",
+      "tools"
+    ],
+    "httpHealthCheck": {
+      "portNumber": 8080,
+      "url": "/health-check"
+    }
+  },
+  "masterDbContext": {
+    "id": "master-db",
+    "hostName": "mongodb",
+    "portNumber": 27017,
+    "username": "admin",
+    "password": "changeme"
+  },
+  "memDbContext": {
+    "id": "mem-db",
+    "hostName": "redis",
+    "portNumber": 6379,
+    "dbNumber": 0
+  },
+  "messageBrokerServiceContext": {
+    "id": "message-broker",
+    "hostName": "rabbitmq",
+    "portNumber": 5672,
+    "virtualHost": "/",
+    "userName": "rocket",
+    "password": "changeme"
+  },
+  "loggingServiceContext": {
+    "id": "logy",
+    "baseEndpoint": "http://rocket-logy:30077",
+    "headers": {
+      "Content-Type": "application/json"
+    }
+  },
+  "zooServiceContext": {
+    "id": "zookeeper",
+    "baseEndpoint": "http://rocket-zookeeper:30079",
+    "headers": {
+      "Content-Type": "application/json"
+    }
+  }
+}
