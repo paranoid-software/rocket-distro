@@ -14,6 +14,7 @@ networks:
 services:
   mongodb:
     image: mongo:7
+    profiles: ["bundled-mongo"]
     hostname: mongodb
     ports:
       - "${MONGO_PORT:-27017}:27017"
@@ -35,6 +36,7 @@ services:
 
   mongo-init:
     image: mongo:7
+    profiles: ["bundled-mongo"]
     depends_on:
       mongodb:
         condition: service_healthy
@@ -63,6 +65,7 @@ services:
 
   opensearch:
     image: opensearchproject/opensearch:2
+    profiles: ["bundled-opensearch"]
     hostname: opensearch
     environment:
       discovery.type: single-node
@@ -92,6 +95,7 @@ services:
 
   rabbitmq:
     image: rabbitmq:3-management
+    profiles: ["bundled-rabbitmq"]
     hostname: rabbitmq
     ports:
       - "${RABBITMQ_AMQP_PORT:-5672}:5672"
@@ -112,6 +116,7 @@ services:
 
   redis:
     image: redis:7-alpine
+    profiles: ["bundled-redis"]
     hostname: redis
     ports:
       - "${REDIS_PORT:-6379}:6379"
@@ -132,6 +137,7 @@ services:
     build:
       context: ./logy-emulator
       dockerfile: Dockerfile
+    profiles: ["bundled-logy"]
     hostname: logy
     ports:
       - "30077:30077"
@@ -142,6 +148,7 @@ services:
     build:
       context: ./zookeeper-emulator
       dockerfile: Dockerfile
+    profiles: ["bundled-zookeeper"]
     hostname: zookeeper
     ports:
       - "30079:30079"
@@ -162,14 +169,19 @@ services:
     depends_on:
       mongodb:
         condition: service_healthy
+        required: false
       mongo-init:
         condition: service_completed_successfully
+        required: false
       opensearch:
         condition: service_healthy
+        required: false
       rocket-logy:
         condition: service_started
+        required: false
       rocket-zookeeper:
         condition: service_started
+        required: false
     networks:
       - rocket
 
@@ -187,16 +199,22 @@ services:
     depends_on:
       mongodb:
         condition: service_healthy
+        required: false
       mongo-init:
         condition: service_completed_successfully
+        required: false
       rabbitmq:
         condition: service_healthy
+        required: false
       redis:
         condition: service_healthy
+        required: false
       rocket-logy:
         condition: service_started
+        required: false
       rocket-zookeeper:
         condition: service_started
+        required: false
     networks:
       - rocket
 
@@ -212,13 +230,17 @@ services:
     depends_on:
       opensearch:
         condition: service_healthy
+        required: false
       rabbitmq:
         condition: service_healthy
+        required: false
       bridge:
         condition: service_started
       rocket-logy:
         condition: service_started
+        required: false
       rocket-zookeeper:
         condition: service_started
+        required: false
     networks:
       - rocket

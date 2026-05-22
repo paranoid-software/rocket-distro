@@ -92,6 +92,38 @@ ROCKET_TAG=develop   # develop branch
 ROCKET_TAG=<sha>     # pin to a commit
 ```
 
+## Use your own infrastructure (compose profiles)
+
+Each bundled service (Mongo, OpenSearch, RabbitMQ, Redis, Logy, Zookeeper) is gated behind a compose profile. The Rocket apps (`api`, `bridge`, `indexer`) have no profile and always run. Their `depends_on` references to bundled services are `required: false`, so any service you opt out of is skipped.
+
+Toggle via `COMPOSE_PROFILES` in `.env`:
+
+```env
+# All bundled (default)
+COMPOSE_PROFILES=bundled-mongo,bundled-opensearch,bundled-rabbitmq,bundled-redis,bundled-logy,bundled-zookeeper
+
+# Bring your own Mongo
+COMPOSE_PROFILES=bundled-opensearch,bundled-rabbitmq,bundled-redis,bundled-logy,bundled-zookeeper
+
+# Rocket apps only (everything else external)
+COMPOSE_PROFILES=
+```
+
+After removing a profile, update the corresponding `hostName`/credentials in `${STORAGE_PATH}/<service>/config/settings.json` so the apps connect to your external endpoint instead of the bundled one:
+
+| Profile removed | Update in `settings.json` |
+|---|---|
+| `bundled-mongo` | `masterDbContext.{hostName, portNumber, username, password}` (api + bridge) |
+| `bundled-opensearch` | `searchCacheDbContext.{hostName, portNumber}` (api + indexer) |
+| `bundled-rabbitmq` | `messageBrokerServiceContext.{hostName, portNumber, userName, password}` (bridge + indexer) |
+| `bundled-redis` | `memDbContext.{hostName, portNumber}` (bridge) |
+| `bundled-logy` | `loggingServiceContext.baseEndpoint` (api + bridge + indexer) |
+| `bundled-zookeeper` | `zooServiceContext.baseEndpoint` (api + bridge + indexer) |
+
+Notes:
+- `bundled-mongo` bundles `mongo-init` (replica-set bootstrap). If you bring your own Mongo, **it must already be a replica set** — Bridge needs change streams.
+- `RABBITMQ_DEFAULT_USER/PASS` in `.env` only apply on first init of the Mnesia volume. To rotate later: `docker compose exec rabbitmq rabbitmqctl change_password <user> '<new>'`.
+
 ## Ports (defaults — override in .env)
 
 | Service | Host port | Env var |
