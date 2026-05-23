@@ -163,6 +163,12 @@ services:
     environment:
       - CONFIG_FILEPATH=/etc/rocket-api/config/settings.json
       - COOKIE_MONSTA_FILEPATH=/etc/rocket-api/secrets/cookie-monsta
+      - API_WORKERS=${API_WORKERS:-1}
+      - API_TIMEOUT=${API_TIMEOUT:-0}
+      - API_LOG_LEVEL=${API_LOG_LEVEL:-info}
+      - API_ACCESS_LOG=${API_ACCESS_LOG:--}
+      - API_ERROR_LOG=${API_ERROR_LOG:--}
+      - API_WORKER_CLASS=${API_WORKER_CLASS:-sync}
     volumes:
       - ${STORAGE_PATH:-./storage}/api/config:/etc/rocket-api/config:ro
       - ${STORAGE_PATH:-./storage}/api/secrets:/etc/rocket-api/secrets:ro
