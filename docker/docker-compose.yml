@@ -9,7 +9,8 @@
 
 networks:
   rocket:
-    name: rocket
+    name: ${NETWORK_NAME:-rocket}
+    external: ${NETWORK_EXTERNAL:-false}
 
 services:
   mongodb:
